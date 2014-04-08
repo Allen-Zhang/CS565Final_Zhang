@@ -20,5 +20,18 @@ public class MySqlConnection {
 		}
 		return conn;	
 	}
+
+	public String getDB_URL() {
+		return DB_URL;
+	}
+
+	public String getDB_USERNAME() {
+		return DB_USERNAME;
+	}
+
+	public String getDB_PASSWORD() {
+		return DB_PASSWORD;
+	}
+	
 	
 }
