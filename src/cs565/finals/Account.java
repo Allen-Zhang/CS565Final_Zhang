@@ -36,11 +36,10 @@ public class Account implements TableModel{
 		return accountRowSet;
 	}
 	
-	public void addCustomer(String custName, String custID, double initDeposit) {
+	public void insertCustomer(String custName, String custID, double initDeposit) {
 		
-		Date today = new Date();  // Get current date
 		SimpleDateFormat todayFormat = new SimpleDateFormat("yyyyMMdd");		
-		int openingDate = Integer.parseInt(todayFormat.format(today));
+		int openingDate = Integer.parseInt(todayFormat.format(new Date()));
 		
 		try {
 			this.accountRowSet.moveToInsertRow();

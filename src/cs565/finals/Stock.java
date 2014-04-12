@@ -31,10 +31,6 @@ public class Stock implements TableModel{
 		this.stockRowSet.beforeFirst();
 	}
 	
-	public CachedRowSet getstockRowSet() {
-		return stockRowSet;
-	}
-	
 	public void addEventHandlersToRowSet(RowSetListener listener) {
 		this.stockRowSet.addRowSetListener(listener);
 	}
@@ -58,10 +54,10 @@ public class Stock implements TableModel{
 			String firstColName =  this.metadata.getColumnLabel(1);
 			// Determine which table was queried
 			if (firstColName.equals("StockQuotesId")) {
-				colName = new String[]{"Symbol", "Price"};
+				colName = new String[]{"Symbol", "Price ($)"};
 			}
 			else if (firstColName.equals("StockHistoryId")) {
-				colName = new String[]{"Symbol", "Price", "Date"};
+				colName = new String[]{"Symbol", "Price ($)", "Date"};
 			}
 			return colName[columnIndex];
 			
