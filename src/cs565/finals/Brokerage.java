@@ -50,7 +50,7 @@ public class Brokerage extends JFrame {
     private JTextField textF_CUST_NAME, textF_CUST_ID, textF_INIT_DEPOSIT, 
     	textF_TX_SYMBOL, textF_TX_PRICE, textF_TX_QTY, textF_TX_DEPOSIT;
     private JButton button_ADD_CUST, button_NEW_TX, button_TX_HISTORY,
-    	button_TX_BUY, button_TX_SELL, button_TX_DEPOSIT,
+    	button_TX_BUY, button_TX_SELL, button_TX_SELL_ALL, button_TX_DEPOSIT,
     	button_PO_SEARCH, button_TX_TYPE_S, button_TX_SINGLE_S, button_TX_FROM_TO_S;
     private DatePicker poHistoryPicker, txSinglePicker, txFromPicker, txToPicker;
     private JComboBox comBoBox_txType;
@@ -109,7 +109,7 @@ public class Brokerage extends JFrame {
         /*----- 1.1.1 Customer List Panel -----*/
       	
         custListTable = new JTable();
-        createNewAccountTableModel();  // Configure custListTable 
+        createAccountTableModel();  // Configure custListTable 
         custListTable.addMouseListener(new ListenForMouse());
         custListTable.setFillsViewportHeight(true);
         custListTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -269,16 +269,14 @@ public class Brokerage extends JFrame {
         poCurrentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         
         // "Portfolio History" table part
-        sql = "SELECT StockHistoryId, StockSymbol, StockPrice, SDate "
-				+ "FROM zhang_stock_history";
-        CachedRowSet crsOfStockHistoryTable = getContentsOfTable(sql);
-        stockHistoryTableModel = new Stock(crsOfStockHistoryTable);
         
         poHistoryTable = new JTable();
-        poHistoryTable.setModel(stockHistoryTableModel);
+        createStockHistoryTableModel("");
         poHistoryTable.setFillsViewportHeight(true);
         
         button_PO_SEARCH = new JButton("  Search  ");
+        // Add listener for stock history search button
+        button_PO_SEARCH.addActionListener(lForButton);
         poHistoryPicker = new DatePicker(poHistoryPanel, 42);
         
         JPanel poHistorySearchPanel = new JPanel();
@@ -306,23 +304,25 @@ public class Brokerage extends JFrame {
         JLabel label_TX_QTY = new JLabel("Quantity: ");
         JLabel label_TX_DEPOSIT = new JLabel("Deposit Amount: ");
         
-        textF_TX_SYMBOL = new JTextField(10);
+        textF_TX_SYMBOL = new JTextField(8);
         textF_TX_SYMBOL.setEditable(false);
         textF_TX_SYMBOL.setBackground(Color.white);
-        textF_TX_PRICE = new JTextField(10);
+        textF_TX_PRICE = new JTextField(8);
         textF_TX_PRICE.setEditable(false);
         textF_TX_PRICE.setBackground(Color.white);
-        textF_TX_QTY = new JTextField(10);
+        textF_TX_QTY = new JTextField(8);
         textF_TX_DEPOSIT = new JTextField(15);
         
         button_TX_BUY = new JButton("Buy"); 
         button_TX_SELL = new JButton("Sell");
         button_TX_DEPOSIT = new JButton("Deposit");
+        button_TX_SELL_ALL = new JButton("Sell All");
         
         // Add listeners for add customer buttons
         button_TX_BUY.addActionListener(lForButton);
         button_TX_SELL.addActionListener(lForButton);
         button_TX_DEPOSIT.addActionListener(lForButton);
+        button_TX_SELL_ALL.addActionListener(lForButton);
         
         JPanel newTxBuyAndSellPanel = new JPanel();
         newTxBuyAndSellPanel.setLayout(new FlowLayout(FlowLayout.CENTER,10,10));
@@ -341,6 +341,7 @@ public class Brokerage extends JFrame {
         newTxBuyAndSellPanel.add(textF_TX_QTY);
         newTxBuyAndSellPanel.add(button_TX_BUY);
         newTxBuyAndSellPanel.add(button_TX_SELL);
+        newTxBuyAndSellPanel.add(button_TX_SELL_ALL);
         
         newTxDepositPanel.add(label_TX_DEPOSIT);
         newTxDepositPanel.add(textF_TX_DEPOSIT);
@@ -383,6 +384,11 @@ public class Brokerage extends JFrame {
         button_TX_SINGLE_S = new JButton("Search");
         button_TX_FROM_TO_S = new JButton("Search");
         
+        // Add listeners for searching transaction history buttons
+        button_TX_TYPE_S.addActionListener(lForButton);
+        button_TX_SINGLE_S.addActionListener(lForButton);
+        button_TX_FROM_TO_S.addActionListener(lForButton);
+        
         txSinglePicker = new DatePicker(viewTxSinglePanel, 50);
         txFromPicker = new DatePicker(viewTxFromToPanel, 50);
         txToPicker = new DatePicker(viewTxFromToPanel, 50);
@@ -409,7 +415,7 @@ public class Brokerage extends JFrame {
         viewTxTitlelPanel.add(label_TX_TITLE);
         
         txHistoryTable = new JTable();
-        createNewTxTableModel("");  // Configure txHistoryTable
+        createTxTableModel("", "");  // Configure txHistoryTable
         txHistoryTable.setFillsViewportHeight(true);
         
         viewTxHistoryPanel.setLayout(new BorderLayout());
@@ -495,8 +501,7 @@ public class Brokerage extends JFrame {
 					"Save to database failed!",
 					"Error message: ",
 					"    \"" + e.getClass().getName() + ": ", 
-					"     " + e.getMessage() + "\"" 
-				});
+					"     " + e.getMessage() + "\""});
 	}
   	
   	// Display the SQLException in a dialog box
@@ -535,12 +540,12 @@ public class Brokerage extends JFrame {
   			crs = rowSetFactory.createCachedRowSet();
   			
   			crs.setType(ResultSet.TYPE_SCROLL_INSENSITIVE);
-			crs.setConcurrency(ResultSet.CONCUR_UPDATABLE);
-			crs.setUsername(dbConn.getDB_USERNAME());
-			crs.setPassword(dbConn.getDB_PASSWORD());
-			crs.setUrl(dbConn.getDB_URL() + "?relaxAutoCommit=true");
-			crs.setCommand(sql);
-			crs.execute();
+  			crs.setConcurrency(ResultSet.CONCUR_UPDATABLE);
+  			crs.setUsername(dbConn.getDB_USERNAME());
+  			crs.setPassword(dbConn.getDB_PASSWORD());
+  			crs.setUrl(dbConn.getDB_URL() + "?relaxAutoCommit=true");
+  			crs.setCommand(sql);
+  			crs.execute();
 			
   		} catch (SQLException e) {
 			displaySQLExceptionDialog(e);
@@ -548,7 +553,7 @@ public class Brokerage extends JFrame {
 		return crs;
   	}
   	
-  	private void createNewAccountTableModel() throws SQLException {
+  	private void createAccountTableModel() throws SQLException {
   		String sql = "SELECT CustomerName, CustomerId, OpeningDate, "
 				+ "OpeningBalance FROM zhang_accounts";
 		accountTableModel = new Account(getContentsOfTable(sql));
@@ -556,10 +561,18 @@ public class Brokerage extends JFrame {
 		custListTable.setModel(accountTableModel);
 	}
   	
-  	private void createNewTxTableModel(String custID) throws SQLException {
+  	private void createStockHistoryTableModel(String constraint) throws SQLException {
+  		String sql = "SELECT StockHistoryId, StockSymbol, StockPrice, SDate "
+				+ "FROM zhang_stock_history " + constraint;
+				stockHistoryTableModel = new Stock(getContentsOfTable(sql));
+  		poHistoryTable.setModel(stockHistoryTableModel);
+  	}
+  	
+  	private void createTxTableModel(String custID, String constraint) throws SQLException {
   		String sql = "SELECT CustomerId, TransactionId, TransactionDate, TransactionType, "
-        		+ "StockSymbol, Quantity, Price FROM zhang_transactions "
-        		+ "WHERE CustomerId = \"" + custID + "\" ORDER BY TransactionId";
+        		+ "StockSymbol, Quantity, Price FROM zhang_transactions"
+        		+ " WHERE CustomerId = \"" + custID + "\" " + constraint
+        		+ " ORDER BY TransactionId";
   		txTableModel = new Transaction(getContentsOfTable(sql));
   		txTableModel.addEventHandlersToRowSet(new ListenForAccountRowSet());
   		txHistoryTable.setModel(txTableModel);
@@ -575,7 +588,7 @@ public class Brokerage extends JFrame {
 				custCard.show(custCardPanel, "custCard01");
 				try {
 					// Refresh data of customer list
-					createNewAccountTableModel();
+					createAccountTableModel();
 				} catch (SQLException sqle) {
 					displaySQLExceptionDialog(sqle);
 				}
@@ -595,7 +608,7 @@ public class Brokerage extends JFrame {
 				txCard.show(txCardPanel, "txCard02");
 				// Refresh data of transaction history
 				try {
-					createNewTxTableModel(label_INFO_ID.getText().replace("ID: ", ""));
+					createTxTableModel(label_INFO_ID.getText().replace("ID: ",""), "");
 				} catch (SQLException e1) {
 					e1.printStackTrace();
 				}
@@ -625,10 +638,65 @@ public class Brokerage extends JFrame {
 			if (e.getSource() == button_TX_SELL) {
 				
 			}
+			// For "Sell All" transaction button
+			if (e.getSource() == button_TX_SELL_ALL) {
+				
+			}
 			// For "Deposit" transaction button
 			if (e.getSource() == button_TX_DEPOSIT) {
 				deposit();
 			}
+			// For "Search" stock history button
+			if (e.getSource() == button_PO_SEARCH) {
+				int queryDate = poHistoryPicker.getIntDate();
+				// Add constraint for the sql statement
+				String constraint = "WHERE SDate = " + queryDate;
+				try {
+					createStockHistoryTableModel(constraint);
+				} catch (SQLException e1) {
+					e1.printStackTrace();
+				}
+			}
+			// For "Search" transaction history by type button
+			if (e.getSource() == button_TX_TYPE_S) {
+				String type = (String)comBoBox_txType.getSelectedItem();
+				String constraint = "";
+				// Add constraint for the sql statement
+				if (!type.equals("All")) {
+					constraint = "AND TransactionType = \"" + type + "\"";
+				}
+				try {
+					createTxTableModel(label_INFO_ID.getText().replace("ID: ",""), constraint);
+				} catch (SQLException e1) {
+					e1.printStackTrace();
+				}
+				
+			}
+			// For "Search" transaction history by single date button
+			if (e.getSource() == button_TX_SINGLE_S) {
+				int queryDate = txSinglePicker.getIntDate();
+				// Add constraint for the sql statement
+				String constraint = "AND TransactionDate = " + queryDate;
+				try {
+					createTxTableModel(label_INFO_ID.getText().replace("ID: ",""), constraint);
+				} catch (SQLException e1) {
+					e1.printStackTrace();
+				}
+			}
+			// For "Search" transaction history by interval date button
+			if (e.getSource() == button_TX_FROM_TO_S) {
+				int startDate = txFromPicker.getIntDate();
+				int endDate = txToPicker.getIntDate();
+				// Add constraint for the sql statement
+				String constraint 
+					= "AND TransactionDate BETWEEN " + startDate + " AND " + endDate;
+				try {
+					createTxTableModel(label_INFO_ID.getText().replace("ID: ",""), constraint);
+				} catch (SQLException e1) {
+					e1.printStackTrace();
+				}
+			}
+
 		}
 		
 		private void saveToDB() {
@@ -641,7 +709,7 @@ public class Brokerage extends JFrame {
 				saveToDBFailedDialog(sqle1);
 				try {
 					// Revert back changes
-					createNewAccountTableModel();
+					createAccountTableModel();
 				} catch (SQLException sqle2) {
 					saveToDBFailedDialog(sqle2);
 				}
@@ -662,7 +730,7 @@ public class Brokerage extends JFrame {
 								"Customer ID:  " + textF_CUST_ID.getText(),
 								"Initial Deposit:  $" + textF_INIT_DEPOSIT.getText()
 							});
-					accountTableModel.insertCustomer(
+					accountTableModel.addCustomer(
 							textF_CUST_NAME.getText(),
 							textF_CUST_ID.getText(),
 							Double.parseDouble(textF_INIT_DEPOSIT.getText().trim()));
@@ -703,24 +771,24 @@ public class Brokerage extends JFrame {
 							JOptionPane.OK_CANCEL_OPTION);
 					// Execute transaction if customer click "OK"
 					if (n == 0) {
-						txTableModel.insertTransaction(custID, Integer.parseInt(today),
+						txTableModel.addBuyTx(custID, Integer.parseInt(today),
 								"Buy", textF_TX_SYMBOL.getText(),
 								Double.parseDouble(textF_TX_QTY.getText().trim()),
 								Double.parseDouble(textF_TX_PRICE.getText().trim()));
 						try {
 							// Save changes into database
 							txTableModel.getTxRowSet().acceptChanges();
-							JOptionPane.showMessageDialog(Brokerage.this,
-									"Buy " + textF_TX_SYMBOL.getText() + " successfully!");
 						} catch (SyncProviderException e1) {
 							saveToDBFailedDialog(e1);
 							try {
 								// Revert back changes
-								createNewTxTableModel(custID);
+								createTxTableModel(custID, "");
 							} catch (SQLException e2) {
 								saveToDBFailedDialog(e2);
 							}
 						}
+						JOptionPane.showMessageDialog(Brokerage.this,
+								"Buy " + textF_TX_SYMBOL.getText() + " successfully!");
 						// Reset textfields after inserting a row
 						resetTextField();
 					}
@@ -755,23 +823,23 @@ public class Brokerage extends JFrame {
 							JOptionPane.OK_CANCEL_OPTION);
 					// Execute transaction if customer click "OK"
 					if (n == 0) {
-						txTableModel.insertTransaction(custID, Integer.parseInt(today),
-								"Deposit", null, 0, 
+						txTableModel.addDepositTx(
+								custID, Integer.parseInt(today), "Deposit",
 								Double.parseDouble(textF_TX_DEPOSIT.getText().trim()));
 						try {
 							// Save changes into database
 							txTableModel.getTxRowSet().acceptChanges();
-							JOptionPane.showMessageDialog(Brokerage.this,
-									"Deposit successfully!");
 						} catch (SyncProviderException e1) {
 							saveToDBFailedDialog(e1);
 							try {
 								// Revert back changes
-								createNewTxTableModel(custID);
+								createTxTableModel(custID, "");
 							} catch (SQLException e2) {
 								saveToDBFailedDialog(e2);
 							}
 						}
+						JOptionPane.showMessageDialog(Brokerage.this,
+								"Deposit successfully!");
 						// Reset textfields after inserting a row
 						resetTextField();
 					}
@@ -841,7 +909,7 @@ public class Brokerage extends JFrame {
 						label_INFO_ID.setText("ID: " + custInfo[1]);
 						label_INFO_OPDATE.setText("Opening Date: " + custInfo[2]);
 						try {
-							createNewTxTableModel(custInfo[1]);  // Reconfigure txHistoryTable 
+							createTxTableModel(custInfo[1], "");  // Reconfigure txHistoryTable 
 						} catch (SQLException sqle) {
 							displaySQLExceptionDialog(sqle);
 						}

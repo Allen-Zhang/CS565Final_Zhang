@@ -37,7 +37,28 @@ public class Transaction implements TableModel{
 		return txRowSet;
 	}
 	
-	public void insertTransaction(String custID, int date, String type, 
+	public void addDepositTx(String custID, int date, String type, double price) {
+		// Generate transaction id
+		SimpleDateFormat format = new SimpleDateFormat("yyyyMMddHHmmss");		
+		String prefix = format.format(new Date());
+		String txID = prefix + custID;
+		try {
+			this.txRowSet.moveToInsertRow();
+			this.txRowSet.updateString("TransactionId", txID);
+			this.txRowSet.updateString("CustomerId", custID);
+			this.txRowSet.updateInt("TransactionDate", date);
+			this.txRowSet.updateString("TransactionType", type);
+			this.txRowSet.updateNull("StockSymbol");
+			this.txRowSet.updateNull("Quantity");
+			this.txRowSet.updateDouble("Price", price);
+			this.txRowSet.insertRow();
+			this.txRowSet.moveToCurrentRow();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void addBuyTx(String custID, int date, String type, 
 			String symbol, double qty, double price) {
 		// Generate transaction id
 		SimpleDateFormat format = new SimpleDateFormat("yyyyMMddHHmmss");		
@@ -49,13 +70,8 @@ public class Transaction implements TableModel{
 			this.txRowSet.updateString("CustomerId", custID);
 			this.txRowSet.updateInt("TransactionDate", date);
 			this.txRowSet.updateString("TransactionType", type);
-			if (type.equals("Deposit")) {
-				this.txRowSet.updateNull("StockSymbol");
-				this.txRowSet.updateNull("Quantity");
-			} else {
-				this.txRowSet.updateString("StockSymbol", symbol);
-				this.txRowSet.updateDouble("Quantity", qty);
-			}
+			this.txRowSet.updateString("StockSymbol", symbol);
+			this.txRowSet.updateDouble("Quantity", qty);
 			this.txRowSet.updateDouble("Price", price);
 			this.txRowSet.insertRow();
 			this.txRowSet.moveToCurrentRow();

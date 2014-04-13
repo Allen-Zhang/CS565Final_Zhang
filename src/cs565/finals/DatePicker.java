@@ -82,6 +82,10 @@ public class DatePicker extends JPanel {
 	public String getDay() {
 		return day;
 	}
+	
+	public int getIntDate() {
+		return Integer.parseInt(year+month+day);
+	}
 
 	private void init() throws Exception {
 		this.setLayout(new GridBagLayout());

@@ -104,5 +104,5 @@ public class Stock implements TableModel{
 
 	@Override
 	public void removeTableModelListener(TableModelListener l) {}
-
+	
 }

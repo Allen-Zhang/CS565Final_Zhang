@@ -36,7 +36,7 @@ public class Account implements TableModel{
 		return accountRowSet;
 	}
 	
-	public void insertCustomer(String custName, String custID, double initDeposit) {
+	public void addCustomer(String custName, String custID, double initDeposit) {
 		
 		SimpleDateFormat todayFormat = new SimpleDateFormat("yyyyMMdd");		
 		int openingDate = Integer.parseInt(todayFormat.format(new Date()));
