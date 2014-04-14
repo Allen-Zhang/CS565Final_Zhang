@@ -13,13 +13,14 @@ import javax.sql.RowSetListener;
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.RowSetFactory;
 import javax.sql.rowset.RowSetProvider;
-import javax.sql.rowset.spi.SyncProviderException;
 import javax.swing.*;
 
 
 public class Brokerage extends JFrame {
 	
-	private static double fee = 5;
+	private static double fee = 5;  // Charge $5 for any buy and sell transactions
+	private String name, id;
+	private double balance;
 	private static final int WIDTH = 750;
     private static final int HEIGHT = 570;
     
@@ -28,8 +29,9 @@ public class Brokerage extends JFrame {
 	private Stock stockQuotesTableModel;
 	private Stock stockHistoryTableModel;
 	private Transaction txTableModel;
+	private Transaction custStockTableModel;
 
-    private JPanel mainCardPanel;
+    private JPanel mainCardPanel;  // The biggest panel
 	
     private JPanel custPanel;
     private JPanel listCustPanel;  // Panel for listing customers
@@ -61,7 +63,6 @@ public class Brokerage extends JFrame {
     
     public Brokerage(MySqlConnection dbConnArg) throws SQLException {
     	super("MET Broker");
-    	
     	this.dbConn = dbConnArg;
     	
     	setSize(WIDTH, HEIGHT);
@@ -76,8 +77,7 @@ public class Brokerage extends JFrame {
         /*----- 1 Main Page Panel -----*/
         
         mainCardPanel = new JPanel();
-        // Set CardLayout for mainPanel 
-        mainCardPanel.setLayout(mainCard);  
+        mainCardPanel.setLayout(mainCard);  // Set CardLayout for mainPanel 
         
         /*----- 2 Main Page Menu -----*/
         
@@ -119,8 +119,7 @@ public class Brokerage extends JFrame {
         listCustPanel.add(new JScrollPane(custListTable));
         
         custCardPanel = new JPanel();
-        // Set CardLayout for custCardPanel
-        custCardPanel.setLayout(custCard);    
+        custCardPanel.setLayout(custCard);   // Set CardLayout for custCardPanel
         
         /*----- 1.1.2.1 Welcome Customer Panel -----*/
         
@@ -190,7 +189,7 @@ public class Brokerage extends JFrame {
         label_INFO_NAME = new JLabel();
         label_INFO_ID = new JLabel(); 
         label_INFO_OPDATE = new JLabel(); 
-        label_INFO_BALANCE = new JLabel("Balance: $60000");
+        label_INFO_BALANCE = new JLabel();
         
         Font font_CUST_INFO = new Font("SansSerif", Font.BOLD, 15);
         label_INFO_NAME.setFont(font_CUST_INFO);
@@ -218,8 +217,7 @@ public class Brokerage extends JFrame {
     			GridBagConstraints.LAST_LINE_START, GridBagConstraints.HORIZONTAL);
         
         txCardPanel = new JPanel();
-        // Set CardLayout for txCardPanel
-        txCardPanel.setLayout(txCard);
+        txCardPanel.setLayout(txCard);   // Set CardLayout for txCardPanel
         
         /*----- 1.2.2.1 New Transaction Panel -----*/
         
@@ -252,26 +250,19 @@ public class Brokerage extends JFrame {
         
         // "Your Stock" table part
         poStockTable = new JTable();
-//      poStockTable.setModel();
+        createCustStockTableModel("");
         poStockTable.setFillsViewportHeight(true);
         
         // "Current Portfolio" table part
-        String sql = "SELECT StockQuotesId, StockSymbol, StockPrice "
-        		+ "FROM zhang_stock_quotes";
-        CachedRowSet crsOfStockQuotesTable = getContentsOfTable(sql);
-        stockQuotesTableModel = new Stock(crsOfStockQuotesTable);
-//        stockQuotesTableModel.addEventHandlersToRowSet(new ListenForAccountRowSet());
-        
         poCurrentTable = new JTable();
-        poCurrentTable.setModel(stockQuotesTableModel);
+        createStockQuotesTableModel();
         poCurrentTable.setFillsViewportHeight(true);
         poCurrentTable.addMouseListener(new ListenForMouse());
         poCurrentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         
         // "Portfolio History" table part
-        
         poHistoryTable = new JTable();
-        createStockHistoryTableModel("");
+        createStockHistoryTableModel(""); 
         poHistoryTable.setFillsViewportHeight(true);
         
         button_PO_SEARCH = new JButton("  Search  ");
@@ -415,7 +406,7 @@ public class Brokerage extends JFrame {
         viewTxTitlelPanel.add(label_TX_TITLE);
         
         txHistoryTable = new JTable();
-        createTxTableModel("", "");  // Configure txHistoryTable
+        createTxTableModel("", "");
         txHistoryTable.setFillsViewportHeight(true);
         
         viewTxHistoryPanel.setLayout(new BorderLayout());
@@ -561,11 +552,28 @@ public class Brokerage extends JFrame {
 		custListTable.setModel(accountTableModel);
 	}
   	
+    private void createStockQuotesTableModel() throws SQLException {
+  		String sql = "SELECT StockQuotesId, StockSymbol, StockPrice "
+        		+ "FROM zhang_stock_quotes";
+  		stockQuotesTableModel = new Stock(getContentsOfTable(sql));
+  		poCurrentTable.setModel(stockQuotesTableModel);
+  	}
+  	
   	private void createStockHistoryTableModel(String constraint) throws SQLException {
   		String sql = "SELECT StockHistoryId, StockSymbol, StockPrice, SDate "
 				+ "FROM zhang_stock_history " + constraint;
 				stockHistoryTableModel = new Stock(getContentsOfTable(sql));
   		poHistoryTable.setModel(stockHistoryTableModel);
+  	}
+  	
+  	private void createCustStockTableModel(String custID) throws SQLException {
+  		String sql = "SELECT CustomerId, CustomerId, StockSymbol, "
+  				+ "SUM(CASE WHEN TransactionType = 'Buy' THEN Quantity END) + "
+  				+ "SUM(CASE WHEN TransactionType= 'Sell' THEN -(Quantity) END) AS Qty "
+  				+ "FROM zhang_transactions WHERE CustomerId = \"" + custID + "\" "
+  				+ "AND TransactionType != 'Deposit' GROUP BY StockSymbol";
+  		custStockTableModel = new Transaction(getContentsOfTable(sql));
+  		poStockTable.setModel(custStockTableModel);
   	}
   	
   	private void createTxTableModel(String custID, String constraint) throws SQLException {
@@ -608,7 +616,7 @@ public class Brokerage extends JFrame {
 				txCard.show(txCardPanel, "txCard02");
 				// Refresh data of transaction history
 				try {
-					createTxTableModel(label_INFO_ID.getText().replace("ID: ",""), "");
+					createTxTableModel(id, "");
 				} catch (SQLException e1) {
 					e1.printStackTrace();
 				}
@@ -636,11 +644,11 @@ public class Brokerage extends JFrame {
 			}
 			// For "Sell" transaction button
 			if (e.getSource() == button_TX_SELL) {
-				
+				sell();
 			}
 			// For "Sell All" transaction button
 			if (e.getSource() == button_TX_SELL_ALL) {
-				
+				sellAll();
 			}
 			// For "Deposit" transaction button
 			if (e.getSource() == button_TX_DEPOSIT) {
@@ -652,6 +660,7 @@ public class Brokerage extends JFrame {
 				// Add constraint for the sql statement
 				String constraint = "WHERE SDate = " + queryDate;
 				try {
+					// Display stock history table after searching
 					createStockHistoryTableModel(constraint);
 				} catch (SQLException e1) {
 					e1.printStackTrace();
@@ -666,11 +675,11 @@ public class Brokerage extends JFrame {
 					constraint = "AND TransactionType = \"" + type + "\"";
 				}
 				try {
-					createTxTableModel(label_INFO_ID.getText().replace("ID: ",""), constraint);
+					// Display tx history table after searching
+					createTxTableModel(id, constraint);
 				} catch (SQLException e1) {
 					e1.printStackTrace();
 				}
-				
 			}
 			// For "Search" transaction history by single date button
 			if (e.getSource() == button_TX_SINGLE_S) {
@@ -678,7 +687,8 @@ public class Brokerage extends JFrame {
 				// Add constraint for the sql statement
 				String constraint = "AND TransactionDate = " + queryDate;
 				try {
-					createTxTableModel(label_INFO_ID.getText().replace("ID: ",""), constraint);
+					// Display tx history table after searching
+					createTxTableModel(id, constraint);
 				} catch (SQLException e1) {
 					e1.printStackTrace();
 				}
@@ -691,12 +701,12 @@ public class Brokerage extends JFrame {
 				String constraint 
 					= "AND TransactionDate BETWEEN " + startDate + " AND " + endDate;
 				try {
-					createTxTableModel(label_INFO_ID.getText().replace("ID: ",""), constraint);
+					// Display tx history table after searching
+					createTxTableModel(id, constraint);
 				} catch (SQLException e1) {
 					e1.printStackTrace();
 				}
 			}
-
 		}
 		
 		private void saveToDB() {
@@ -726,15 +736,15 @@ public class Brokerage extends JFrame {
 					JOptionPane.showMessageDialog(Brokerage.this, 
 							new String[] {
 								"New customer information:",
-								"Customer Name:  " + textF_CUST_NAME.getText(),
-								"Customer ID:  " + textF_CUST_ID.getText(),
-								"Initial Deposit:  $" + textF_INIT_DEPOSIT.getText()
+								"Customer Name:  " + textF_CUST_NAME.getText().trim(),
+								"Customer ID:  " + textF_CUST_ID.getText().trim(),
+								"Initial Deposit:  $" + textF_INIT_DEPOSIT.getText().trim()
 							});
 					accountTableModel.addCustomer(
-							textF_CUST_NAME.getText(),
-							textF_CUST_ID.getText(),
+							textF_CUST_NAME.getText().trim(),
+							textF_CUST_ID.getText().trim(),
 							Double.parseDouble(textF_INIT_DEPOSIT.getText().trim()));
-					// Reset textfields after inserting a row
+					// Reset textfields after a transaction
 					resetTextField();
 				} else {
 					JOptionPane.showMessageDialog(Brokerage.this,
@@ -748,48 +758,133 @@ public class Brokerage extends JFrame {
 		}
 		
 		private void buy() {
+			double buyQty = Double.parseDouble(textF_TX_QTY.getText().trim());
 			// Not empty validation
 			if (textF_TX_SYMBOL.getText().trim().length() != 0 &&
 					textF_TX_PRICE.getText().trim().length() != 0 &&
-							textF_TX_QTY.getText().trim().length() != 0) {
+					textF_TX_QTY.getText().trim().length() != 0) {
 				// Number format validation
-				if (isNumeric(textF_TX_QTY.getText())) {
+				if (isNumeric(textF_TX_QTY.getText().trim()) && buyQty > 0) {
 					SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");		
 					String today = format.format(new Date());
-					String custID = label_INFO_ID.getText().replace("ID: ", "");
-					String custName = label_INFO_NAME.getText().replace("Name: ", "");
 					int n = JOptionPane.showConfirmDialog(Brokerage.this,
 							new String[] {
-								"Customer Name:  " + custName,
-								"Customer ID:  " + custID,
+								"Customer Name:  " + name,
+								"Customer ID:  " + id,
 								"Transaction Date:  " + today,
+								"Transaction fee:  $" + fee,
 								"Stock Symbol:  " + textF_TX_SYMBOL.getText(),
-								"Stock Price:  $" + textF_TX_PRICE.getText(),
-								"Quantity:  " + textF_TX_QTY.getText(),
+								"Current Price:  $" + textF_TX_PRICE.getText(),
+								"Purchase Quantity:  " + buyQty
 							},
-							"Transaction confirmation", 
+							"Transaction Confirmation", 
 							JOptionPane.OK_CANCEL_OPTION);
-					// Execute transaction if customer click "OK"
+					// Execute buy transaction if customer confirms
 					if (n == 0) {
-						txTableModel.addBuyTx(custID, Integer.parseInt(today),
-								"Buy", textF_TX_SYMBOL.getText(),
-								Double.parseDouble(textF_TX_QTY.getText().trim()),
-								Double.parseDouble(textF_TX_PRICE.getText().trim()));
-						try {
-							// Save changes into database
-							txTableModel.getTxRowSet().acceptChanges();
-						} catch (SyncProviderException e1) {
-							saveToDBFailedDialog(e1);
+						// Add a new transaction into Transaction table
+						double newBalance = txTableModel.addBuyTx(balance, fee, id, 
+								Integer.parseInt(today), textF_TX_SYMBOL.getText(),
+								buyQty, Double.parseDouble(textF_TX_PRICE.getText()));
+						// Validation for balance
+						if (newBalance != balance) {
+							Brokerage.this.balance = newBalance;
+							// Update balance in Account table
+							accountTableModel.updateBalance(id, balance);						
+							JOptionPane.showMessageDialog(Brokerage.this,
+									"Purchase " + buyQty + " shares of " 
+									+ textF_TX_SYMBOL.getText() + " successfully!");
+							// Refresh the balance label
+							label_INFO_BALANCE.setText("Balance: " + balance);
+							// Reset textfields after a transaction
+							resetTextField();
 							try {
-								// Revert back changes
-								createTxTableModel(custID, "");
-							} catch (SQLException e2) {
-								saveToDBFailedDialog(e2);
+								// Refresh customer stock table
+								createCustStockTableModel(id);
+							} catch (SQLException e) {
+								e.printStackTrace();
 							}
+						} else {
+							JOptionPane.showMessageDialog(Brokerage.this,
+									"Insufficient balance, please try again!");
+							textF_TX_QTY.setText("");
 						}
-						JOptionPane.showMessageDialog(Brokerage.this,
-								"Buy " + textF_TX_SYMBOL.getText() + " successfully!");
-						// Reset textfields after inserting a row
+					}
+				} else {
+					JOptionPane.showMessageDialog(Brokerage.this,
+							"Invalid quantity, please try again!");
+					textF_TX_QTY.setText("");
+				}
+			} else {
+				JOptionPane.showMessageDialog(Brokerage.this, 
+						"Please enter all required value!");
+			}
+		}
+		
+		private void sell() {
+			double sellQty = Double.parseDouble(textF_TX_QTY.getText().trim());
+			// Not empty validation
+			if (textF_TX_SYMBOL.getText().trim().length() != 0 &&
+					textF_TX_PRICE.getText().trim().length() != 0 && 
+					textF_TX_QTY.getText().trim().length() != 0) {
+				// Number format validation
+				if (isNumeric(textF_TX_QTY.getText().trim()) && sellQty > 0) {
+					// Check remaining stock
+					double remainingQty = txTableModel.queryRemainingStock(
+							id, textF_TX_SYMBOL.getText().trim());
+					if (remainingQty > 0) {
+						// Check sell quantity
+						if (remainingQty > sellQty) {
+							SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");		
+							String today = format.format(new Date());
+							int n = JOptionPane.showConfirmDialog(Brokerage.this,
+									new String[] {
+										"Customer Name:  " + name,
+										"Customer ID:  " + id,
+										"Transaction Date:  " + today,
+										"Transaction fee:  $" + fee,
+										"Stock Symbol:  " + textF_TX_SYMBOL.getText(),
+										"Current Price:  $" + textF_TX_PRICE.getText(),
+										"Sell Quantity:  " + sellQty
+									},
+									"Transaction Confirmation", 
+									JOptionPane.OK_CANCEL_OPTION);
+							// Execute buy transaction if customer confirms
+							if (n == 0) {
+								double newBalance = txTableModel.addSellTx(balance, fee, id, 
+										Integer.parseInt(today), textF_TX_SYMBOL.getText(),
+										sellQty, Double.parseDouble(textF_TX_PRICE.getText()));
+								// Validation for balance
+								if (newBalance != balance) {
+									Brokerage.this.balance = newBalance;
+									// Update balance in Account table
+									accountTableModel.updateBalance(id, balance);
+									JOptionPane.showMessageDialog(Brokerage.this,
+											"Sell " + sellQty + " shares of " 
+												+ textF_TX_SYMBOL.getText() + " successfully!");
+									// Refresh the balance label
+									label_INFO_BALANCE.setText("Balance: " + balance);
+									// Reset textfields after a transaction
+									resetTextField();
+									try {
+										// Refresh customer stock table
+										createCustStockTableModel(id);
+									} catch (SQLException e) {
+										e.printStackTrace();
+									}
+								} else {
+									JOptionPane.showMessageDialog(Brokerage.this,
+											"Sorry, you can't afford the transaction fee!");
+									resetTextField();
+								}
+							}
+						} else {
+							JOptionPane.showMessageDialog(Brokerage.this,
+									"Insufficient remaining quantity, please try again!");
+							textF_TX_QTY.setText("");
+						}
+					} else {
+						JOptionPane.showMessageDialog(Brokerage.this, 
+								"Sorry, you don't have this stock!");
 						resetTextField();
 					}
 				} else {
@@ -803,43 +898,97 @@ public class Brokerage extends JFrame {
 			}
 		}
 		
+		private void sellAll() {
+			// Not empty validation
+			if (textF_TX_SYMBOL.getText().trim().length() != 0 &&
+					textF_TX_PRICE.getText().trim().length() != 0) {
+				// Check remaining stock
+				double remainingQty = txTableModel.queryRemainingStock(
+						id, textF_TX_SYMBOL.getText().trim());
+				if (remainingQty > 0) {
+					SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");		
+					String today = format.format(new Date());
+					int n = JOptionPane.showConfirmDialog(Brokerage.this,
+							new String[] {
+								"Customer Name:  " + name,
+								"Customer ID:  " + id,
+								"Transaction Date:  " + today,
+								"Transaction fee:  $" + fee,
+								"Stock Symbol:  " + textF_TX_SYMBOL.getText(),
+								"Current Price:  $" + textF_TX_PRICE.getText(),
+								"Remaining Quantity:  " + remainingQty,
+								"Are you sure about selling all of your " 
+										+ textF_TX_SYMBOL.getText() + " ?"
+							},
+							"Transaction Confirmation", 
+							JOptionPane.OK_CANCEL_OPTION);
+					// Execute buy transaction if customer confirms
+					if (n == 0) {
+						double newBalance = txTableModel.addSellTx(balance, fee, id, 
+								Integer.parseInt(today), textF_TX_SYMBOL.getText(),
+								remainingQty, Double.parseDouble(textF_TX_PRICE.getText()));
+						// Validation for balance
+						if (newBalance != balance) {
+							Brokerage.this.balance = newBalance;
+							// Update balance in Account table
+							accountTableModel.updateBalance(id, balance);
+							JOptionPane.showMessageDialog(Brokerage.this,
+									"Sell all " + textF_TX_SYMBOL.getText() + " successfully!");
+							// Refresh the balance label
+							label_INFO_BALANCE.setText("Balance: " + balance);
+							// Reset textfields after a transaction
+							resetTextField();
+							try {
+								// Refresh customer stock table
+								createCustStockTableModel(id);
+							} catch (SQLException e) {
+								e.printStackTrace();
+							}
+						} else {
+							JOptionPane.showMessageDialog(Brokerage.this,
+									"Sorry, you can't afford the transaction fee!");
+							resetTextField();
+						}
+					}
+				} else {
+					JOptionPane.showMessageDialog(Brokerage.this, 
+							"Sorry, you don't have this stock!");
+				}
+			} else {
+				JOptionPane.showMessageDialog(Brokerage.this, 
+						"Please enter all required value!");
+			}
+		}
+		
 		private void deposit() {
 			// Not empty validation
 			if (textF_TX_DEPOSIT.getText().trim().length() != 0) {
 				// Number format validation
-				if (isNumeric(textF_TX_DEPOSIT.getText())) {
+				if (isNumeric(textF_TX_DEPOSIT.getText().trim()) && 
+						Double.parseDouble(textF_TX_DEPOSIT.getText().trim()) > 0) {
 					SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");		
 					String today = format.format(new Date());
-					String custID = label_INFO_ID.getText().replace("ID: ", "");
-					String custName = label_INFO_NAME.getText().replace("Name: ", "");
 					int n = JOptionPane.showConfirmDialog(Brokerage.this,
 							new String[] {
-								"Customer Name:  " + custName,
-								"Customer ID:  " + custID,
+								"Customer Name:  " + name,
+								"Customer ID:  " + id,
 								"Transaction Date:  " + today,
-								"Deposit Amount:  $" + textF_TX_DEPOSIT.getText()
+								"Deposit Amount:  $" + textF_TX_DEPOSIT.getText().trim()
 							},
-							"Transaction confirmation", 
+							"Transaction Confirmation", 
 							JOptionPane.OK_CANCEL_OPTION);
-					// Execute transaction if customer click "OK"
+					// Execute deposit transaction if customer confirms
 					if (n == 0) {
-						txTableModel.addDepositTx(
-								custID, Integer.parseInt(today), "Deposit",
+						// Add a new transaction into Transaction table
+						Brokerage.this.balance = txTableModel.addDepositTx(
+								balance, id, Integer.parseInt(today),
 								Double.parseDouble(textF_TX_DEPOSIT.getText().trim()));
-						try {
-							// Save changes into database
-							txTableModel.getTxRowSet().acceptChanges();
-						} catch (SyncProviderException e1) {
-							saveToDBFailedDialog(e1);
-							try {
-								// Revert back changes
-								createTxTableModel(custID, "");
-							} catch (SQLException e2) {
-								saveToDBFailedDialog(e2);
-							}
-						}
+						// Update balance in Account table
+						accountTableModel.updateBalance(id, balance);
 						JOptionPane.showMessageDialog(Brokerage.this,
 								"Deposit successfully!");
+						// Refresh the balance label
+						label_INFO_BALANCE.setText("Balance: " + balance);
 						// Reset textfields after inserting a row
 						resetTextField();
 					}
@@ -904,12 +1053,18 @@ public class Brokerage extends JFrame {
 					String[] custInfo = getSelectedRowValue(custListTable);
 					if (!custInfo[0].equals(
 							"java.sql.SQLException: absolute : Invalid cursor position")) {
+						// Get information of current customer
+						Brokerage.this.name = custInfo[0];
+						Brokerage.this.id = custInfo[1];
+						Brokerage.this.balance = Double.parseDouble(custInfo[3]);
 						// Display selected customer information on transaction page
-						label_INFO_NAME.setText("Name: " + custInfo[0]);
-						label_INFO_ID.setText("ID: " + custInfo[1]);
+						label_INFO_NAME.setText("Name: " + name);
+						label_INFO_ID.setText("ID: " + id);
 						label_INFO_OPDATE.setText("Opening Date: " + custInfo[2]);
+						label_INFO_BALANCE.setText("Balance: $" + balance);
 						try {
-							createTxTableModel(custInfo[1], "");  // Reconfigure txHistoryTable 
+							createTxTableModel(id, "");  // Reconfigure txHistoryTable
+							createCustStockTableModel(id);  // Reconfigure poStockTable
 						} catch (SQLException sqle) {
 							displaySQLExceptionDialog(sqle);
 						}
@@ -932,7 +1087,6 @@ public class Brokerage extends JFrame {
 					}
 				}
 			}
-			
 		}
 
 		@Override

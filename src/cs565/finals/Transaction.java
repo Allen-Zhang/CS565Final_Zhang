@@ -37,46 +37,115 @@ public class Transaction implements TableModel{
 		return txRowSet;
 	}
 	
-	public void addDepositTx(String custID, int date, String type, double price) {
-		// Generate transaction id
+	public String generateTxId(String custID) {
 		SimpleDateFormat format = new SimpleDateFormat("yyyyMMddHHmmss");		
 		String prefix = format.format(new Date());
 		String txID = prefix + custID;
+		return txID;
+	}
+	
+	public double addDepositTx(double balance, String custID, 
+			int date, double price) {
+		// Generate transaction id
+		String txID = generateTxId(custID);
 		try {
 			this.txRowSet.moveToInsertRow();
 			this.txRowSet.updateString("TransactionId", txID);
 			this.txRowSet.updateString("CustomerId", custID);
 			this.txRowSet.updateInt("TransactionDate", date);
-			this.txRowSet.updateString("TransactionType", type);
+			this.txRowSet.updateString("TransactionType", "Deposit");
 			this.txRowSet.updateNull("StockSymbol");
 			this.txRowSet.updateNull("Quantity");
 			this.txRowSet.updateDouble("Price", price);
 			this.txRowSet.insertRow();
 			this.txRowSet.moveToCurrentRow();
+			// Synchronize changes back to the DB
+			this.txRowSet.acceptChanges();  
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
+		return balance + price;  // Return new balance
 	}
 	
-	public void addBuyTx(String custID, int date, String type, 
-			String symbol, double qty, double price) {
-		// Generate transaction id
-		SimpleDateFormat format = new SimpleDateFormat("yyyyMMddHHmmss");		
-		String prefix = format.format(new Date());
-		String txID = prefix + custID;
+	public double addBuyTx(double balance, double fee, String custID, 
+			int date, String symbol, double qty, double price) {
+		// Validation for balance
+		if (balance >= qty * price + fee) {
+			// Generate transaction id
+			String txID = generateTxId(custID);
+			try {
+				this.txRowSet.moveToInsertRow();
+				this.txRowSet.updateString("TransactionId", txID);
+				this.txRowSet.updateString("CustomerId", custID);
+				this.txRowSet.updateInt("TransactionDate", date);
+				this.txRowSet.updateString("TransactionType", "Buy");
+				this.txRowSet.updateString("StockSymbol", symbol);
+				this.txRowSet.updateDouble("Quantity", qty);
+				this.txRowSet.updateDouble("Price", price);
+				this.txRowSet.insertRow();
+				this.txRowSet.moveToCurrentRow();
+				// Synchronize changes back to the DB
+				this.txRowSet.acceptChanges(); 
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			return balance - qty * price - fee;  // Return new balance
+		} else {
+			return balance;  // Return old balance
+		}
+	}
+	
+	public double queryRemainingStock(String custID, String stockSymbol) {
+		double buyQty = 0;
+		double sellQty = 0;
 		try {
-			this.txRowSet.moveToInsertRow();
-			this.txRowSet.updateString("TransactionId", txID);
-			this.txRowSet.updateString("CustomerId", custID);
-			this.txRowSet.updateInt("TransactionDate", date);
-			this.txRowSet.updateString("TransactionType", type);
-			this.txRowSet.updateString("StockSymbol", symbol);
-			this.txRowSet.updateDouble("Quantity", qty);
-			this.txRowSet.updateDouble("Price", price);
-			this.txRowSet.insertRow();
-			this.txRowSet.moveToCurrentRow();
+			this.txRowSet.beforeFirst();
+			while (this.txRowSet.next()) {
+				// Customer identification
+				if (this.txRowSet.getString("CustomerId").equals(custID)) {
+					// Calculate the quantity of this stock that customer brought
+					if (this.txRowSet.getString("TransactionType").equals("Buy")
+							&& this.txRowSet.getString("StockSymbol").equals(stockSymbol)) {
+						buyQty += this.txRowSet.getDouble("Quantity");
+					}
+					// Calculate the quantity of this stock that customer sold
+					if (this.txRowSet.getString("TransactionType").equals("Sell")
+							&& this.txRowSet.getString("StockSymbol").equals(stockSymbol)) {
+						sellQty += this.txRowSet.getDouble("Quantity");	
+					}
+				}
+			} 
 		} catch (SQLException e) {
 			e.printStackTrace();
+		}
+		return buyQty - sellQty;  // Return remaining quantity
+	}
+	
+	public double addSellTx(double balance, double fee, String custID, 
+			int date, String symbol, double qty, double price) {
+		// Validation for balance
+		if (balance + qty * price > fee) {
+			// Generate transaction id
+			String txID = generateTxId(custID);
+			try {
+				this.txRowSet.moveToInsertRow();
+				this.txRowSet.updateString("TransactionId", txID);
+				this.txRowSet.updateString("CustomerId", custID);
+				this.txRowSet.updateInt("TransactionDate", date);
+				this.txRowSet.updateString("TransactionType", "Sell");
+				this.txRowSet.updateString("StockSymbol", symbol);
+				this.txRowSet.updateDouble("Quantity", qty);
+				this.txRowSet.updateDouble("Price", price);
+				this.txRowSet.insertRow();
+				this.txRowSet.moveToCurrentRow();
+				// Synchronize changes back to the DB
+				this.txRowSet.acceptChanges(); 
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			return balance + qty * price - fee;  // Return new balance
+		} else {
+			return balance;  // Return old balance
 		}
 	}
 	
@@ -96,7 +165,15 @@ public class Transaction implements TableModel{
 
 	@Override
 	public String getColumnName(int columnIndex) {
-		String[] colName = {"Date", "Type", "Symbol", "Quantity", "Price ($)"};
+		String[] colName = new String[columnIndex];
+		// For transaction history table
+		if (numcols == 5) {
+			colName = new String[]{"Date", "Type", "Symbol", "Quantity", "Price ($)"};
+		} 
+		// For "your stock" table
+		else if (numcols == 2) {
+			colName = new String[]{"Symbol", "Quantity"};
+		}
 		return colName[columnIndex];
 	}
 
@@ -109,7 +186,7 @@ public class Transaction implements TableModel{
 	public boolean isCellEditable(int rowIndex, int columnIndex) {
 		return false;
 	}
-
+	
 	@Override
 	public Object getValueAt(int rowIndex, int columnIndex) {
 		try {

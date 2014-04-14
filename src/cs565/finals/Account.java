@@ -54,6 +54,23 @@ public class Account implements TableModel{
 		}
 	}
 	
+	public void updateBalance(String custID, double newBalance) {
+		try {
+			this.accountRowSet.beforeFirst();
+			while (this.accountRowSet.next()) {
+				if (this.accountRowSet.getString("CustomerId").equals(custID)) {
+					this.accountRowSet.updateDouble("OpeningBalance", newBalance);
+					this.accountRowSet.updateRow();
+					// Synchronize changes back to the DB
+					this.accountRowSet.acceptChanges();
+					break;
+				}
+			} 
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	public void addEventHandlersToRowSet(RowSetListener listener) {
 		this.accountRowSet.addRowSetListener(listener);
 	}
@@ -77,7 +94,7 @@ public class Account implements TableModel{
 //		} catch (SQLException e) {
 //			e.printStackTrace();
 //		}
-		String[] colName = {"Customer Name", "Customer ID", "Opening Date", "Opening Balance"};
+		String[] colName = {"Customer Name", "Customer ID", "Opening Date", "Current Balance"};
 		return colName[columnIndex];
 	}
 
