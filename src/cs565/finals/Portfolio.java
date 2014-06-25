@@ -9,30 +9,33 @@ import javax.swing.event.TableModelListener;
 import javax.swing.table.TableModel;
 
 
-public class Stock implements TableModel{
+public class Portfolio implements TableModel{
 
-	private CachedRowSet stockRowSet;
+	private CachedRowSet poRowSet;
 	private ResultSetMetaData metadata;
 	private int numcols, numrows;
 	
-	public Stock(CachedRowSet rowSetArg) throws SQLException {
+	public Portfolio(CachedRowSet rowSetArg) throws SQLException {
 		
-		this.stockRowSet = rowSetArg;
-		this.metadata = this.stockRowSet.getMetaData();
-		// Ignore id column
-		numcols = metadata.getColumnCount() - 1;
+		this.poRowSet = rowSetArg;
+		this.metadata = this.poRowSet.getMetaData();
+		numcols = metadata.getColumnCount();
 		
 		// Retrieve the number of rows
-		this.stockRowSet.beforeFirst();
+		this.poRowSet.beforeFirst();
 		this.numrows = 0;
-		while (this.stockRowSet.next()) {
+		while (this.poRowSet.next()) {
 			this.numrows ++;
 		}
-		this.stockRowSet.beforeFirst();
+		this.poRowSet.beforeFirst();
+	}
+	
+	public CachedRowSet getpoRowSet() {
+		return poRowSet;
 	}
 	
 	public void addEventHandlersToRowSet(RowSetListener listener) {
-		this.stockRowSet.addRowSetListener(listener);
+		this.poRowSet.addRowSetListener(listener);
 	}
 
 	@Override
@@ -47,7 +50,13 @@ public class Stock implements TableModel{
 
 	@Override
 	public String getColumnName(int columnIndex) {
-		String[] colName = new String[]{"Symbol", "Price ($)"};
+		String[] colName = null;
+		if (numcols == 3) {
+			colName = new String[]{"Symbol", "Quantity", "Value ($)"};
+		}
+		if (numcols == 5) {
+			colName = new String[]{"Date", "Symbol", "Quantity", "Price ($)", "Value ($)"};
+		}
 		return colName[columnIndex];
 	}
 
@@ -60,15 +69,14 @@ public class Stock implements TableModel{
 	public boolean isCellEditable(int rowIndex, int columnIndex) {
 		return false;
 	}
-
+	
 	@Override
 	public Object getValueAt(int rowIndex, int columnIndex) {
 		try {
 			// SQL starts numbering its rows and columns at 1,
 			// but the TableModel interface starts at 0
-			this.stockRowSet.absolute(rowIndex + 1);
-			// Ignore id column, so start from the the second column
-			Object o = this.stockRowSet.getObject(columnIndex + 2);
+			this.poRowSet.absolute(rowIndex + 1);
+			Object o = this.poRowSet.getObject(columnIndex + 1);
 			if (o == null)
 				return null;
 			else
@@ -89,5 +97,5 @@ public class Stock implements TableModel{
 
 	@Override
 	public void removeTableModelListener(TableModelListener l) {}
-	
+
 }

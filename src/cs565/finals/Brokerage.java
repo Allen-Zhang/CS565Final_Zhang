@@ -21,16 +21,16 @@ public class Brokerage extends JFrame {
 	private static double fee = 5;  // Charge $5 for any buy and sell transactions
 	private String name, id;
 	private double balance;
-	private static final int WIDTH = 750;
-    private static final int HEIGHT = 570;
+	private static final int WIDTH = 900;
+    private static final int HEIGHT = 620;
     
 	private MySqlConnection dbConn;
 	private Account accountTableModel;
-	private Stock stockQuotesTableModel;
-	private Stock stockHistoryTableModel;
+	private Stock stockQuotesTableModel; 
+	private Portfolio poHistoryTableModel; 
+	private Portfolio poCurrentTableModel;
 	private Transaction txTableModel;
-	private Transaction custStockTableModel;
-
+	
     private JPanel mainCardPanel;  // The biggest panel
 	
     private JPanel custPanel;
@@ -47,7 +47,7 @@ public class Brokerage extends JFrame {
 
     private JMenuItem loadFromDB, addCust, saveToDB;
     private JLabel label_INFO_NAME, label_INFO_ID, label_INFO_OPDATE, label_INFO_BALANCE;
-    private JTable custListTable, poStockTable, poCurrentTable, poHistoryTable,
+    private JTable custListTable, stockQuotesTable, poCurrentTable, poHistoryTable,
 		txHistoryTable;
     private JTextField textF_CUST_NAME, textF_CUST_ID, textF_INIT_DEPOSIT, 
     	textF_TX_SYMBOL, textF_TX_PRICE, textF_TX_QTY, textF_TX_DEPOSIT;
@@ -109,7 +109,7 @@ public class Brokerage extends JFrame {
         /*----- 1.1.1 Customer List Panel -----*/
       	
         custListTable = new JTable();
-        createAccountTableModel();  // Configure custListTable 
+//        createAccountTableModel();  // Load from database when the app is launched
         custListTable.addMouseListener(new ListenForMouse());
         custListTable.setFillsViewportHeight(true);
         custListTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -197,7 +197,7 @@ public class Brokerage extends JFrame {
         label_INFO_OPDATE.setFont(font_CUST_INFO);
         label_INFO_BALANCE.setFont(font_CUST_INFO);
         
-        button_NEW_TX = new JButton("  Make New Transactions ");
+        button_NEW_TX = new JButton("Make New Transactions");
         button_TX_HISTORY = new JButton("View Transaction History");
         // Add listeners for new_tx and tx_history buttons
         button_NEW_TX.addActionListener(lForCardPanel);
@@ -207,13 +207,13 @@ public class Brokerage extends JFrame {
     			GridBagConstraints.LAST_LINE_START, GridBagConstraints.NONE);
         addComp(custInfoPanel, label_INFO_ID, 1, 0, 1, 1, new Insets(10,10,0,0),
     			GridBagConstraints.LAST_LINE_START, GridBagConstraints.NONE);
-        addComp(custInfoPanel, label_INFO_OPDATE, 2, 0, 1, 1, new Insets(10,10,0,0),
+        addComp(custInfoPanel, label_INFO_OPDATE, 2, 0, 1, 1, new Insets(10,40,0,0),
     			GridBagConstraints.LAST_LINE_START, GridBagConstraints.NONE);
         addComp(custInfoPanel, label_INFO_BALANCE, 3, 0, 1, 1, new Insets(10,10,0,0),
     			GridBagConstraints.LAST_LINE_START, GridBagConstraints.NONE);
-        addComp(custInfoPanel, button_NEW_TX, 0, 1, 2, 1, new Insets(10,10,5,0),
+        addComp(custInfoPanel, button_NEW_TX, 0, 1, 2, 1, new Insets(10,10,5,-30),
     			GridBagConstraints.LINE_END, GridBagConstraints.HORIZONTAL);
-        addComp(custInfoPanel, button_TX_HISTORY, 2, 1, 2, 1, new Insets(10,10,5,10),
+        addComp(custInfoPanel, button_TX_HISTORY, 2, 1, 2, 1, new Insets(10,40,5,10),
     			GridBagConstraints.LAST_LINE_START, GridBagConstraints.HORIZONTAL);
         
         txCardPanel = new JPanel();
@@ -227,67 +227,67 @@ public class Brokerage extends JFrame {
         JPanel newTxPortfolioPanel = new JPanel();
         newTxPortfolioPanel.setLayout(new GridBagLayout());
         
-        JPanel custStockPanel = new JPanel();
-        JPanel currentPoPanel = new JPanel();
+        JPanel poCurrentPanel = new JPanel();
         JPanel poHistoryPanel = new JPanel();
+        JPanel stockQuotesPanel = new JPanel();
         
-        custStockPanel.setLayout(new BorderLayout());
-        currentPoPanel.setLayout(new BorderLayout());
+        poCurrentPanel.setLayout(new BorderLayout());
         poHistoryPanel.setLayout(new BorderLayout());
+        stockQuotesPanel.setLayout(new BorderLayout());
         
-        JLabel label_PO_STOCK = new JLabel("    Your Stock    ");
         JLabel label_PO_CURRENT = new JLabel("Current Portfolio");
         JLabel label_PO_HISTORY = new JLabel("Portfolio History");
+        JLabel label_STOCK_QUOTES = new JLabel("Stock Quotes");
         
-        label_PO_STOCK.setHorizontalAlignment(SwingConstants.CENTER);
         label_PO_CURRENT.setHorizontalAlignment(SwingConstants.CENTER);
         label_PO_HISTORY.setHorizontalAlignment(SwingConstants.CENTER);
+        label_STOCK_QUOTES.setHorizontalAlignment(SwingConstants.CENTER);
         
         Font font_PO = new Font("SansSerif", Font.BOLD, 15);
-        label_PO_STOCK.setFont(font_PO);
         label_PO_CURRENT.setFont(font_PO);
         label_PO_HISTORY.setFont(font_PO);
-        
-        // "Your Stock" table part
-        poStockTable = new JTable();
-        createCustStockTableModel("");
-        poStockTable.setFillsViewportHeight(true);
+        label_STOCK_QUOTES.setFont(font_PO);
         
         // "Current Portfolio" table part
         poCurrentTable = new JTable();
-        createStockQuotesTableModel();
+        createCurrentPoTableModel("");  // Initiate poCurrentTable with dummy data
         poCurrentTable.setFillsViewportHeight(true);
-        poCurrentTable.addMouseListener(new ListenForMouse());
-        poCurrentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         
         // "Portfolio History" table part
         poHistoryTable = new JTable();
-        createStockHistoryTableModel(""); 
+        createPoHistoryTableModel("",20140401);  // Initiate poHistoryTable with dummy data
         poHistoryTable.setFillsViewportHeight(true);
         
-        button_PO_SEARCH = new JButton("  Search  ");
+        button_PO_SEARCH = new JButton(" Search ");
         // Add listener for stock history search button
         button_PO_SEARCH.addActionListener(lForButton);
-        poHistoryPicker = new DatePicker(poHistoryPanel, 42);
+        poHistoryPicker = new DatePicker(poHistoryPanel, 45);
+        
+        // "Stock Quotes" table part
+        stockQuotesTable = new JTable();
+        createStockQuotesTableModel();
+        stockQuotesTable.setFillsViewportHeight(true);
+        stockQuotesTable.addMouseListener(new ListenForMouse());
+        stockQuotesTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         
         JPanel poHistorySearchPanel = new JPanel();
-        poHistorySearchPanel.setLayout(new BorderLayout());
-        poHistorySearchPanel.add(poHistoryPicker, BorderLayout.WEST);
-        poHistorySearchPanel.add(button_PO_SEARCH, BorderLayout.EAST);
+        poHistorySearchPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 20, 2));
+        poHistorySearchPanel.add(poHistoryPicker);
+        poHistorySearchPanel.add(button_PO_SEARCH);
         
-        custStockPanel.add(label_PO_STOCK, BorderLayout.NORTH);
-        custStockPanel.add(new JScrollPane(poStockTable), BorderLayout.CENTER);
-        currentPoPanel.add(label_PO_CURRENT, BorderLayout.NORTH);
-        currentPoPanel.add(new JScrollPane(poCurrentTable), BorderLayout.CENTER);
+        stockQuotesPanel.add(label_STOCK_QUOTES, BorderLayout.NORTH);
+        stockQuotesPanel.add(new JScrollPane(stockQuotesTable), BorderLayout.CENTER);
+        poCurrentPanel.add(label_PO_CURRENT, BorderLayout.NORTH);
+        poCurrentPanel.add(new JScrollPane(poCurrentTable), BorderLayout.CENTER);
         poHistoryPanel.add(label_PO_HISTORY, BorderLayout.NORTH);
         poHistoryPanel.add(new JScrollPane(poHistoryTable), BorderLayout.CENTER);
         poHistoryPanel.add(poHistorySearchPanel, BorderLayout.SOUTH);
         
-        addPanel(newTxPortfolioPanel, custStockPanel, 0, 0, 1, 1, 1, 1, new Insets(
+        addPanel(newTxPortfolioPanel, poCurrentPanel, 0, 0, 1, 1, 0.9, 1, new Insets(
         		0,0,0,10), GridBagConstraints.WEST, GridBagConstraints.BOTH);
-        addPanel(newTxPortfolioPanel, currentPoPanel, 1, 0, 1, 1, 1, 1, new Insets(
+        addPanel(newTxPortfolioPanel, poHistoryPanel, 1, 0, 1, 1, 1.2, 1, new Insets(
         		0,0,0,0), GridBagConstraints.CENTER, GridBagConstraints.BOTH);
-        addPanel(newTxPortfolioPanel, poHistoryPanel, 2, 0, 1, 1, 0.65, 1, new Insets(
+        addPanel(newTxPortfolioPanel, stockQuotesPanel, 2, 0, 1, 1, 0.8, 1, new Insets(
         		0,10,0,0), GridBagConstraints.EAST, GridBagConstraints.BOTH);
         
         JLabel label_TX_SYMBOl = new JLabel("Symbol: ");
@@ -295,19 +295,19 @@ public class Brokerage extends JFrame {
         JLabel label_TX_QTY = new JLabel("Quantity: ");
         JLabel label_TX_DEPOSIT = new JLabel("Deposit Amount: ");
         
-        textF_TX_SYMBOL = new JTextField(8);
+        textF_TX_SYMBOL = new JTextField(10);
         textF_TX_SYMBOL.setEditable(false);
         textF_TX_SYMBOL.setBackground(Color.white);
-        textF_TX_PRICE = new JTextField(8);
+        textF_TX_PRICE = new JTextField(10);
         textF_TX_PRICE.setEditable(false);
         textF_TX_PRICE.setBackground(Color.white);
-        textF_TX_QTY = new JTextField(8);
+        textF_TX_QTY = new JTextField(10);
         textF_TX_DEPOSIT = new JTextField(15);
         
-        button_TX_BUY = new JButton("Buy"); 
-        button_TX_SELL = new JButton("Sell");
-        button_TX_DEPOSIT = new JButton("Deposit");
-        button_TX_SELL_ALL = new JButton("Sell All");
+        button_TX_BUY = new JButton("  Buy  "); 
+        button_TX_SELL = new JButton("  Sell  ");
+        button_TX_DEPOSIT = new JButton(" Deposit ");
+        button_TX_SELL_ALL = new JButton(" Sell All ");
         
         // Add listeners for add customer buttons
         button_TX_BUY.addActionListener(lForButton);
@@ -316,11 +316,11 @@ public class Brokerage extends JFrame {
         button_TX_SELL_ALL.addActionListener(lForButton);
         
         JPanel newTxBuyAndSellPanel = new JPanel();
-        newTxBuyAndSellPanel.setLayout(new FlowLayout(FlowLayout.CENTER,10,10));
+        newTxBuyAndSellPanel.setLayout(new FlowLayout(FlowLayout.CENTER,15,10));
         newTxBuyAndSellPanel.setBorder(BorderFactory.createTitledBorder(
         		"Buy and Sell Transaction"));
         JPanel newTxDepositPanel = new JPanel();
-        newTxDepositPanel.setLayout(new FlowLayout(FlowLayout.CENTER,10,8));
+        newTxDepositPanel.setLayout(new FlowLayout(FlowLayout.CENTER,15,8));
         newTxDepositPanel.setBorder(BorderFactory.createTitledBorder(
         		"Deposit Transaction"));
         
@@ -357,10 +357,10 @@ public class Brokerage extends JFrame {
         JPanel viewTxTitlelPanel = new JPanel();
         JPanel viewTxHistoryPanel = new JPanel();
         
-        viewTxTypePanel.setLayout(new FlowLayout(FlowLayout.LEFT,12,0));
-        viewTxSinglePanel.setLayout(new FlowLayout(FlowLayout.LEFT,12,0));
+        viewTxTypePanel.setLayout(new FlowLayout(FlowLayout.LEFT,15,0));
+        viewTxSinglePanel.setLayout(new FlowLayout(FlowLayout.LEFT,15,0));
         viewTxTSPanel.setLayout(new GridBagLayout());
-        viewTxFromToPanel.setLayout(new FlowLayout(FlowLayout.LEFT,12,0));
+        viewTxFromToPanel.setLayout(new FlowLayout(FlowLayout.LEFT,15,0));
         viewTxTitlelPanel.setLayout(new FlowLayout(FlowLayout.CENTER,0,5));
         viewTxHistoryPanel.setLayout(new BorderLayout());
         
@@ -371,18 +371,18 @@ public class Brokerage extends JFrame {
         JLabel label_TX_TITLE = new JLabel("Transaction History Table");
         label_TX_TITLE.setFont(font_CUST_INFO);
         
-        button_TX_TYPE_S = new JButton("Search");
-        button_TX_SINGLE_S = new JButton("Search");
-        button_TX_FROM_TO_S = new JButton("Search");
+        button_TX_TYPE_S = new JButton(" Search ");
+        button_TX_SINGLE_S = new JButton(" Search ");
+        button_TX_FROM_TO_S = new JButton(" Search ");
         
         // Add listeners for searching transaction history buttons
         button_TX_TYPE_S.addActionListener(lForButton);
         button_TX_SINGLE_S.addActionListener(lForButton);
         button_TX_FROM_TO_S.addActionListener(lForButton);
         
-        txSinglePicker = new DatePicker(viewTxSinglePanel, 50);
-        txFromPicker = new DatePicker(viewTxFromToPanel, 50);
-        txToPicker = new DatePicker(viewTxFromToPanel, 50);
+        txSinglePicker = new DatePicker(viewTxSinglePanel, 57);
+        txFromPicker = new DatePicker(viewTxFromToPanel, 57);
+        txToPicker = new DatePicker(viewTxFromToPanel, 57);
         
         String[] types = {"All", "Buy", "Sell", "Deposit"};
         comBoBox_txType = new JComboBox(types);
@@ -412,9 +412,9 @@ public class Brokerage extends JFrame {
         viewTxHistoryPanel.setLayout(new BorderLayout());
         viewTxHistoryPanel.add(new JScrollPane(txHistoryTable));
         
-        addPanel(viewTxTSPanel, viewTxTypePanel, 0, 0, 1, 1, 0.25, 0, new Insets(0,0,0,0),
+        addPanel(viewTxTSPanel, viewTxTypePanel, 0, 0, 1, 1, 0, 0, new Insets(0,0,0,0),
         		GridBagConstraints.CENTER, GridBagConstraints.HORIZONTAL);
-        addPanel(viewTxTSPanel, viewTxSinglePanel, 1, 0, 1, 1, 1, 0, new Insets(0,0,0,0),
+        addPanel(viewTxTSPanel, viewTxSinglePanel, 1, 0, 1, 1, 1, 0, new Insets(0,12,0,0),
         		GridBagConstraints.CENTER, GridBagConstraints.HORIZONTAL);
         addPanel(viewTxPanel, viewTxTSPanel, 0, 0, 1, 1, 1, 0, new Insets(5,0,0,0),
         		GridBagConstraints.NORTH, GridBagConstraints.HORIZONTAL);
@@ -556,24 +556,41 @@ public class Brokerage extends JFrame {
   		String sql = "SELECT StockQuotesId, StockSymbol, StockPrice "
         		+ "FROM zhang_stock_quotes";
   		stockQuotesTableModel = new Stock(getContentsOfTable(sql));
-  		poCurrentTable.setModel(stockQuotesTableModel);
+  		stockQuotesTable.setModel(stockQuotesTableModel);
+  	}
+
+    private void createCurrentPoTableModel(String custID) throws SQLException {
+    	String sql = "SELECT t.StockSymbol, "
+    			+ "SUM(CASE WHEN t.TransactionType = 'Buy' THEN t.Quantity ELSE 0 END) - "
+    			+ "SUM(CASE WHEN t.TransactionType = 'Sell' THEN t.Quantity ELSE 0 END) AS Qty, "
+    			+ "ROUND((SUM(CASE WHEN t.TransactionType = 'Buy' THEN t.Quantity ELSE 0 END) - "
+    			+ "SUM(CASE WHEN t.TransactionType = 'Sell' THEN t.Quantity ELSE 0 END)) "
+    			+ "* s.StockPrice, 2) AS Value "
+    			+ "FROM zhang_transactions t, zhang_stock_quotes s "
+    			+ "WHERE CustomerId = \"" + custID + "\" "
+    			+ "AND t.StockSymbol = s.StockSymbol "
+    			+ "AND t.TransactionType != 'Deposit' "
+    			+ "GROUP BY t.StockSymbol";
+  		poCurrentTableModel = new Portfolio(getContentsOfTable(sql));
+  		poCurrentTable.setModel(poCurrentTableModel);
   	}
   	
-  	private void createStockHistoryTableModel(String constraint) throws SQLException {
-  		String sql = "SELECT StockHistoryId, StockSymbol, StockPrice, SDate "
-				+ "FROM zhang_stock_history " + constraint;
-				stockHistoryTableModel = new Stock(getContentsOfTable(sql));
-  		poHistoryTable.setModel(stockHistoryTableModel);
-  	}
-  	
-  	private void createCustStockTableModel(String custID) throws SQLException {
-  		String sql = "SELECT CustomerId, CustomerId, StockSymbol, "
-  				+ "SUM(CASE WHEN TransactionType = 'Buy' THEN Quantity END) + "
-  				+ "SUM(CASE WHEN TransactionType= 'Sell' THEN -(Quantity) END) AS Qty "
-  				+ "FROM zhang_transactions WHERE CustomerId = \"" + custID + "\" "
-  				+ "AND TransactionType != 'Deposit' GROUP BY StockSymbol";
-  		custStockTableModel = new Transaction(getContentsOfTable(sql));
-  		poStockTable.setModel(custStockTableModel);
+  	private void createPoHistoryTableModel(String custID, int date) throws SQLException {
+  		String sql = "SELECT s.SDate, t.StockSymbol, "
+  				+ "SUM(CASE WHEN t.TransactionType = 'Buy' THEN t.Quantity ELSE 0 END) - "
+  				+ "SUM(CASE WHEN t.TransactionType = 'Sell' THEN t.Quantity ELSE 0 END) "
+  				+ "AS Qty, s.StockPrice, "
+  				+ "ROUND((SUM(CASE WHEN t.TransactionType = 'Buy' THEN t.Quantity ELSE 0 END) - "
+  				+ "SUM(CASE WHEN t.TransactionType = 'Sell' THEN t.Quantity ELSE 0 END)) "
+  				+ "* s.StockPrice, 2) AS Value "
+  				+ "FROM zhang_transactions t, zhang_stock_history s "
+  				+ "WHERE CustomerId = \"" + custID + "\" "
+  				+ "AND t.StockSymbol = s.StockSymbol "
+  				+ "AND t.TransactionType != 'Deposit' "
+  				+ "AND s.SDate = \"" + date + "\" "
+  				+ "GROUP BY t.StockSymbol";
+  		poHistoryTableModel = new Portfolio(getContentsOfTable(sql));
+  		poHistoryTable.setModel(poHistoryTableModel);
   	}
   	
   	private void createTxTableModel(String custID, String constraint) throws SQLException {
@@ -621,7 +638,6 @@ public class Brokerage extends JFrame {
 					e1.printStackTrace();
 				}
 			} 
-			
 		}
     }
     
@@ -657,11 +673,9 @@ public class Brokerage extends JFrame {
 			// For "Search" stock history button
 			if (e.getSource() == button_PO_SEARCH) {
 				int queryDate = poHistoryPicker.getIntDate();
-				// Add constraint for the sql statement
-				String constraint = "WHERE SDate = " + queryDate;
 				try {
 					// Display stock history table after searching
-					createStockHistoryTableModel(constraint);
+					createPoHistoryTableModel(id, queryDate);
 				} catch (SQLException e1) {
 					e1.printStackTrace();
 				}
@@ -758,13 +772,13 @@ public class Brokerage extends JFrame {
 		}
 		
 		private void buy() {
-			double buyQty = Double.parseDouble(textF_TX_QTY.getText().trim());
 			// Not empty validation
 			if (textF_TX_SYMBOL.getText().trim().length() != 0 &&
 					textF_TX_PRICE.getText().trim().length() != 0 &&
 					textF_TX_QTY.getText().trim().length() != 0) {
 				// Number format validation
-				if (isNumeric(textF_TX_QTY.getText().trim()) && buyQty > 0) {
+				if (isNumeric(textF_TX_QTY.getText().trim()) && 
+						Double.parseDouble(textF_TX_QTY.getText().trim()) > 0) {
 					SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");		
 					String today = format.format(new Date());
 					int n = JOptionPane.showConfirmDialog(Brokerage.this,
@@ -775,7 +789,8 @@ public class Brokerage extends JFrame {
 								"Transaction fee:  $" + fee,
 								"Stock Symbol:  " + textF_TX_SYMBOL.getText(),
 								"Current Price:  $" + textF_TX_PRICE.getText(),
-								"Purchase Quantity:  " + buyQty
+								"Purchase Quantity:  " + 
+								Double.parseDouble(textF_TX_QTY.getText().trim())
 							},
 							"Transaction Confirmation", 
 							JOptionPane.OK_CANCEL_OPTION);
@@ -784,22 +799,24 @@ public class Brokerage extends JFrame {
 						// Add a new transaction into Transaction table
 						double newBalance = txTableModel.addBuyTx(balance, fee, id, 
 								Integer.parseInt(today), textF_TX_SYMBOL.getText(),
-								buyQty, Double.parseDouble(textF_TX_PRICE.getText()));
+								Double.parseDouble(textF_TX_QTY.getText().trim()),
+								Double.parseDouble(textF_TX_PRICE.getText()));
 						// Validation for balance
 						if (newBalance != balance) {
 							Brokerage.this.balance = newBalance;
 							// Update balance in Account table
 							accountTableModel.updateBalance(id, balance);						
 							JOptionPane.showMessageDialog(Brokerage.this,
-									"Purchase " + buyQty + " shares of " 
-									+ textF_TX_SYMBOL.getText() + " successfully!");
+									"Purchase " + Double.parseDouble(textF_TX_QTY.getText().trim())
+									+ " shares of " + textF_TX_SYMBOL.getText() 
+									+ " successfully!");
 							// Refresh the balance label
-							label_INFO_BALANCE.setText("Balance: " + balance);
+							label_INFO_BALANCE.setText("Balance: $" + balance);
 							// Reset textfields after a transaction
 							resetTextField();
 							try {
 								// Refresh customer stock table
-								createCustStockTableModel(id);
+								createCurrentPoTableModel(id);
 							} catch (SQLException e) {
 								e.printStackTrace();
 							}
@@ -821,19 +838,20 @@ public class Brokerage extends JFrame {
 		}
 		
 		private void sell() {
-			double sellQty = Double.parseDouble(textF_TX_QTY.getText().trim());
 			// Not empty validation
 			if (textF_TX_SYMBOL.getText().trim().length() != 0 &&
 					textF_TX_PRICE.getText().trim().length() != 0 && 
 					textF_TX_QTY.getText().trim().length() != 0) {
 				// Number format validation
-				if (isNumeric(textF_TX_QTY.getText().trim()) && sellQty > 0) {
+				if (isNumeric(textF_TX_QTY.getText().trim()) && 
+						Double.parseDouble(textF_TX_QTY.getText().trim()) > 0) {
 					// Check remaining stock
 					double remainingQty = txTableModel.queryRemainingStock(
 							id, textF_TX_SYMBOL.getText().trim());
 					if (remainingQty > 0) {
 						// Check sell quantity
-						if (remainingQty > sellQty) {
+						if (remainingQty >= 
+								Double.parseDouble(textF_TX_QTY.getText().trim())) {
 							SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");		
 							String today = format.format(new Date());
 							int n = JOptionPane.showConfirmDialog(Brokerage.this,
@@ -844,7 +862,8 @@ public class Brokerage extends JFrame {
 										"Transaction fee:  $" + fee,
 										"Stock Symbol:  " + textF_TX_SYMBOL.getText(),
 										"Current Price:  $" + textF_TX_PRICE.getText(),
-										"Sell Quantity:  " + sellQty
+										"Sell Quantity:  " + 
+										Double.parseDouble(textF_TX_QTY.getText().trim())
 									},
 									"Transaction Confirmation", 
 									JOptionPane.OK_CANCEL_OPTION);
@@ -852,22 +871,24 @@ public class Brokerage extends JFrame {
 							if (n == 0) {
 								double newBalance = txTableModel.addSellTx(balance, fee, id, 
 										Integer.parseInt(today), textF_TX_SYMBOL.getText(),
-										sellQty, Double.parseDouble(textF_TX_PRICE.getText()));
+										Double.parseDouble(textF_TX_QTY.getText().trim()),
+										Double.parseDouble(textF_TX_PRICE.getText()));
 								// Validation for balance
 								if (newBalance != balance) {
 									Brokerage.this.balance = newBalance;
 									// Update balance in Account table
 									accountTableModel.updateBalance(id, balance);
 									JOptionPane.showMessageDialog(Brokerage.this,
-											"Sell " + sellQty + " shares of " 
-												+ textF_TX_SYMBOL.getText() + " successfully!");
+											"Sell " + Double.parseDouble(textF_TX_QTY.getText().trim())
+											+ " shares of " + textF_TX_SYMBOL.getText() 
+											+ " successfully!");
 									// Refresh the balance label
-									label_INFO_BALANCE.setText("Balance: " + balance);
+									label_INFO_BALANCE.setText("Balance: $" + balance);
 									// Reset textfields after a transaction
 									resetTextField();
 									try {
 										// Refresh customer stock table
-										createCustStockTableModel(id);
+										createCurrentPoTableModel(id);
 									} catch (SQLException e) {
 										e.printStackTrace();
 									}
@@ -935,12 +956,12 @@ public class Brokerage extends JFrame {
 							JOptionPane.showMessageDialog(Brokerage.this,
 									"Sell all " + textF_TX_SYMBOL.getText() + " successfully!");
 							// Refresh the balance label
-							label_INFO_BALANCE.setText("Balance: " + balance);
+							label_INFO_BALANCE.setText("Balance: $" + balance);
 							// Reset textfields after a transaction
 							resetTextField();
 							try {
 								// Refresh customer stock table
-								createCustStockTableModel(id);
+								createCurrentPoTableModel(id);
 							} catch (SQLException e) {
 								e.printStackTrace();
 							}
@@ -988,7 +1009,7 @@ public class Brokerage extends JFrame {
 						JOptionPane.showMessageDialog(Brokerage.this,
 								"Deposit successfully!");
 						// Refresh the balance label
-						label_INFO_BALANCE.setText("Balance: " + balance);
+						label_INFO_BALANCE.setText("Balance: $" + balance);
 						// Reset textfields after inserting a row
 						resetTextField();
 					}
@@ -1062,9 +1083,11 @@ public class Brokerage extends JFrame {
 						label_INFO_ID.setText("ID: " + id);
 						label_INFO_OPDATE.setText("Opening Date: " + custInfo[2]);
 						label_INFO_BALANCE.setText("Balance: $" + balance);
+						int today = poHistoryPicker.getIntDate();
 						try {
-							createTxTableModel(id, "");  // Reconfigure txHistoryTable
-							createCustStockTableModel(id);  // Reconfigure poStockTable
+							createCurrentPoTableModel(id);  // Reconfigure poCurrentTable
+					        createPoHistoryTableModel(id, today);  // Reconfigure poHistoryTable
+					        createTxTableModel(id, "");  // Reconfigure txHistoryTable
 						} catch (SQLException sqle) {
 							displaySQLExceptionDialog(sqle);
 						}
@@ -1075,10 +1098,10 @@ public class Brokerage extends JFrame {
 					} 
 				}
 			}
-			if (e.getSource() == poCurrentTable) {
+			if (e.getSource() == stockQuotesTable) {
 				if (e.getClickCount() == 1) {
 					// Get value of the selected row
-					String[] stockInfo = getSelectedRowValue(poCurrentTable);
+					String[] stockInfo = getSelectedRowValue(stockQuotesTable);
 					if (!stockInfo[0].equals(
 							"java.sql.SQLException: absolute : Invalid cursor position")) {
 						// Set these value to corresponding textfields
@@ -1107,6 +1130,11 @@ public class Brokerage extends JFrame {
 		
 		try {
 			MySqlConnection mySqlConnection = new MySqlConnection();
+			
+			// Database initialization
+			mySqlConnection.createTables();  // Create all tables
+			mySqlConnection.populateTables();  // Insert data into tables
+			
 			Brokerage brokerage = new Brokerage(mySqlConnection);
 			brokerage.setVisible(true);
 		} catch (Exception e) {

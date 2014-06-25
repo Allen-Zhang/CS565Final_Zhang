@@ -87,12 +87,12 @@ public class Account implements TableModel{
 
 	@Override
 	public String getColumnName(int columnIndex) {
-		// SQL starts numbering its rows and columns at 1,
-		// but the TableModel interface starts at 0
 //		try {
+//			// SQL starts numbering its rows and columns at 1,
+//			// but the TableModel interface starts at 0
 //			return this.metadata.getColumnLabel(columnIndex + 1);
 //		} catch (SQLException e) {
-//			e.printStackTrace();
+//			return e.toString();
 //		}
 		String[] colName = {"Customer Name", "Customer ID", "Opening Date", "Current Balance"};
 		return colName[columnIndex];

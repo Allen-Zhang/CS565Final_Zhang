@@ -1,5 +1,6 @@
 package cs565.finals;
 
+import java.math.BigDecimal;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -89,7 +90,10 @@ public class Transaction implements TableModel{
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
-			return balance - qty * price - fee;  // Return new balance
+			double newBalance = balance - qty * price - fee;
+			BigDecimal bg = new BigDecimal(newBalance);
+	        newBalance = bg.setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
+			return newBalance;  // Return new balance
 		} else {
 			return balance;  // Return old balance
 		}
@@ -143,7 +147,10 @@ public class Transaction implements TableModel{
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
-			return balance + qty * price - fee;  // Return new balance
+			double newBalance = balance + qty * price - fee;
+			BigDecimal bg = new BigDecimal(newBalance);
+	        newBalance = bg.setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
+			return newBalance;  // Return new balance
 		} else {
 			return balance;  // Return old balance
 		}
@@ -165,15 +172,7 @@ public class Transaction implements TableModel{
 
 	@Override
 	public String getColumnName(int columnIndex) {
-		String[] colName = new String[columnIndex];
-		// For transaction history table
-		if (numcols == 5) {
-			colName = new String[]{"Date", "Type", "Symbol", "Quantity", "Price ($)"};
-		} 
-		// For "your stock" table
-		else if (numcols == 2) {
-			colName = new String[]{"Symbol", "Quantity"};
-		}
+		String[] colName = {"Date", "Type", "Symbol", "Quantity", "Price ($)"};
 		return colName[columnIndex];
 	}
 
@@ -193,7 +192,7 @@ public class Transaction implements TableModel{
 			// SQL starts numbering its rows and columns at 1,
 			// but the TableModel interface starts at 0
 			this.txRowSet.absolute(rowIndex + 1);
-			// Ignore CustomerID and TransactionID columns, so start from the the third column
+			// Ignore CustomerID and TransactionID columns, and start from the third column
 			Object o = this.txRowSet.getObject(columnIndex + 3);
 			if (o == null)
 				return null;
